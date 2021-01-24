@@ -1,17 +1,19 @@
-const Eris = require("jean-wrapper");
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Jean Vides. All rights reserved.
+ *  See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
 
-
-import Rei from '../../Rei';
-
+import MoyaiLib from "moyai-lib";
+import Bot from '../../../base/Bot';
 import { inspect } from 'util';
 
-class Cluster {
+export default class Cluster {
 
     protected shards;
     protected maxShards;
     protected firstShardID;
     protected lastShardID;
-    protected mainFile;
+    protected mainFile: any;
     protected clusterID;
     protected clusterCount;
     protected guilds;
@@ -20,15 +22,14 @@ class Cluster {
     protected exclusiveGuilds;
     protected largeGuilds;
     protected voiceChannels;
-    protected shardsStats;
-    protected app;
-    protected client;
-    protected test;
+    protected shardsStats: any;
+    protected app: any;
+    protected client: any;
+    protected test: any;
 
-    protected ipc;
+    protected ipc: any;
 
     public constructor() {
-
         this.shards = 0;
         this.maxShards = 0;
         this.firstShardID = 0;
@@ -47,21 +48,21 @@ class Cluster {
         this.client = null;
         this.test = false;
 
-        console.log = (str) => process.send({ name: "log", msg: this.logOverride(str) });
-        console.error = (str) => process.send({ name: "error", msg: this.logOverride(str) });
-        console.warn = (str) => process.send({ name: "warn", msg: this.logOverride(str) });
-        console.info = (str) => process.send({ name: "info", msg: this.logOverride(str) });
-        console.debug = (str) => process.send({ name: "debug", msg: this.logOverride(str) });
+        console.log = (str: string) => process.send({ name: "log", msg: this.logOverride(str) });
+        console.error = (str: string) => process.send({ name: "error", msg: this.logOverride(str) });
+        console.warn = (str: string) => process.send({ name: "warn", msg: this.logOverride(str) });
+        console.info = (str: string) => process.send({ name: "info", msg: this.logOverride(str) });
+        console.debug = (str: string) => process.send({ name: "debug", msg: this.logOverride(str) });
 
     }
 
-    public logOverride(message) {
+    public logOverride(message: any) {
         if (typeof message == 'object') return inspect(message);
         else return message;
     }
 
     public spawn() {
-        process.on('uncaughtException', (err) => {
+        process.on('uncaughtException', (err: any) => {
             process.send({ name: "error", msg: err.stack });
         });
 
@@ -71,7 +72,7 @@ class Cluster {
         });
 
 
-        process.on("message", (msg) => {
+        process.on("message", (msg: any) => {
             if (msg.name) {
                 switch (msg.name) {
                     case "connect": {
@@ -172,7 +173,7 @@ class Cluster {
         });
     }
 
-    public connect(firstShardID, lastShardID, maxShards, token, type, clientOptions) {
+    public connect(firstShardID: number, lastShardID: number, maxShards: number, token: string, type: any, clientOptions: any) {
         process.send({ name: "log", msg: `Connecting with ${this.shards} shard(s)` });
 
         let options = { autoreconnect: true, firstShardID: firstShardID, lastShardID: lastShardID, maxShards: maxShards };
@@ -183,14 +184,14 @@ class Cluster {
 
         Object.assign(options, clientOptions);
 
-        const client = new Eris(token, options);
+        const client = MoyaiLib(token, options);
         this.client = client;
 
-        client.on("connect", id => {
+        client.on("connect", (id: any) => {
             process.send({ name: "log", msg: `Shard ${id} established connection!` });
         });
 
-        client.on("shardDisconnect", (err, id) => {
+        client.on("shardDisconnect", (id: any) => {
             process.send({ name: "log", msg: `Shard ${id} disconnected!` });
             let embed = {
                 description: `☠️ Shard ${id} is now offline.`,
@@ -199,7 +200,7 @@ class Cluster {
             process.send({ name: "shard", embed: embed });
         });
 
-        client.on("shardReady", id => {
+        client.on("shardReady", (id: any) => {
             process.send({ name: "log", msg: `Shard ${id} is ready!` });
             let embed = {
                 description: `🔨 Shard ${id} is now operating.`,
@@ -208,7 +209,7 @@ class Cluster {
             process.send({ name: "shard", embed: embed });
         });
 
-        client.on("shardResume", id => {
+        client.on("shardResume", (id: any) => {
             process.send({ name: "log", msg: `Shard ${id} has resumed.` });
             let embed = {
                 description: `⏸ Shard ${id} resumed.`,
@@ -217,21 +218,21 @@ class Cluster {
             process.send({ name: "shard", embed: embed });
         });
 
-        client.on("warn", (message, id) => {
+        client.on("warn", (message: any, id: any) => {
             process.send({ name: "warn", msg: `Shard ${id} | ${message}` });
         });
 
-        client.on("error", (error, id) => {
+        client.on("error", (error: any, id: any) => {
             process.send({ name: "error", msg: `Shard ${id} | ${error.stack}` });
         });
 
-        client.once("ready", id => {
+        client.once("ready", (id: any) => {
             this.loadCode(client);
 
             this.startStats(client);
         });
 
-        client.on("ready", id => {
+        client.on("ready", (id: any) => {
             process.send({ name: "log", msg: `Shards ${this.firstShardID} - ${this.lastShardID} are ready!` });
 
             process.send({ name: "shardsStarted" });
@@ -245,13 +246,13 @@ class Cluster {
         }
     }
 
-    public async loadCode(client) {
-        this.app = new Rei({ client: client, clusterID: this.clusterID });
+    public async loadCode(client: any) {
+        this.app = new Bot(client, this.clusterID);
         this.app.launch();
         this.ipc = this.app.ipc;
     }
 
-    public startStats(client) {
+    public startStats(client: any) {
         setInterval(() => {
             let _shards = [];
             for(let shard of client.shards) {
@@ -268,11 +269,9 @@ class Cluster {
             this.users = client.users.size;
             this.uptime = client.uptime;
             this.voiceChannels = client.voiceConnections.size;
-            this.largeGuilds = client.guilds.filter(g => g.large).length;
-            this.exclusiveGuilds = client.guilds.filter(g => g.members.filter(m => m.bot).length === 1).length;
+            this.largeGuilds = client.guilds.filter((g: any) => g.large).length;
+            this.exclusiveGuilds = client.guilds.filter((g: any) => g.members.filter((m: any) => m.bot).length === 1).length;
             this.shardsStats = _shards;
         }, 1000 * 5);
     }
 }
-
-export = Cluster;
