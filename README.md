@@ -1,3 +1,3 @@
-# Eris Sharder on TS and modified
+# Sharder for Moyai
 
 Last modification: 24/01/2021
