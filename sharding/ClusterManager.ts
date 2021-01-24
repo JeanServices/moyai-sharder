@@ -1,30 +1,45 @@
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Jean Vides. All rights reserved.
+ *  See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
 import master from "cluster";
-const numCPUs = require('os').cpus().length;
-
-const EventEmitter = require("events");
-const Eris = require("jean-wrapper");
-
+import EventEmitter = require('events');
+import MoyaiLib from "moyai-lib";
 import cluster from "./Cluster";
 import logger from '../../utilities/Logger';
 import Queue from "../../utilities/Queue";
 
-const clientName = "Moyai";
-const clusterManagerName = `${clientName} Clusters`;
-const clusterName = `${clusterManagerName} / Cluster`;
-const generalLog = "Master";
-
-import { webhooks } from '../../../../config.json';
-
 export default class ClusterManager extends EventEmitter {
 
-    public clusters;
+    public moyai: any;
+    
+    public shardCount: any;
+    public firstShardID: any;
+    public lastShardID: any;
+    public clusterCount: any;
+    public clusterTimeout: any;
+    public token: any;
+    public clusters: any;
+    public workers: any;
+    public queue: any;
+    public options: any;
+    public statsInterval: any;
+    public name: any;
+    public guildsPerShard: any;
+    public webhooks: any;
+    public clientOptions: any;
+    public callbacks: any;
+    public stats: any;
+    public mainFile: any;
+    public test: any;
 
-    public constructor(token, options) {
+    public constructor(token: string, options: any) {
         super();
         this.shardCount = options.shards || 0;
         this.firstShardID = options.firstShardID || 0;
         this.lastShardID = options.lastShardID || (this.shardCount - 1);
-        this.clusterCount = options.clusters || numCPUs;
+        this.clusterCount = options.clusters || (require('os').cpus().length);
         this.clusterTimeout = options.clusterTimeout * 1000 || 5000;
         this.token = token || false;
         this.clusters = new Map();
@@ -36,7 +51,7 @@ export default class ClusterManager extends EventEmitter {
         this.statsInterval = 1000 * 14;
         this.name = options.name;
         this.guildsPerShard = options.guildsPerShard || 2500;
-        this.webhooks = webhooks;
+        this.webhooks = {};
 
         this.options.debug = options.debug || false;
         this.clientOptions = options.clientOptions || {};
@@ -58,13 +73,13 @@ export default class ClusterManager extends EventEmitter {
         }
 
         if (this.token) {
-            this.eris = new Eris(token);
+            this.moyai = MoyaiLib(token);
             this.launch();
         } else {
             throw new Error("No token provided");
         }
 
-        return this.eris;
+        return this.moyai;
     }
 
     public isMaster() {
@@ -90,8 +105,8 @@ export default class ClusterManager extends EventEmitter {
         }
     }
 
-    public executeStats(clusters, start) {
-        const clusterToRequest = clusters.filter(c => c[1].state === 'listening')[start];
+    public executeStats(clusters: any, start: any) {
+        const clusterToRequest = clusters.filter((c: any) => c[1].state === 'listening')[start];
         if (clusterToRequest) {
             let c = clusterToRequest[1];
 
@@ -101,9 +116,9 @@ export default class ClusterManager extends EventEmitter {
         }
     }
 
-    public start(clusterID) {
+    public start(clusterID: number) {
         if (clusterID === this.clusterCount) {
-            logger.info(clusterManagerName, "All Clusters have been initialized!");
+            logger.prototype.info(`${this.name} Master`, "All Clusters have been initialized!");
 
             let shards = [];
 
@@ -127,7 +142,7 @@ export default class ClusterManager extends EventEmitter {
             let worker = master.fork();
             this.clusters.set(clusterID, { workerID: worker.id });
             this.workers.set(worker.id, clusterID);
-            logger.info(clusterManagerName, `Initializing cluster ${clusterID}`);
+            logger.prototype.info(`${this.name} Master`, `Initializing cluster ${clusterID}`);
             clusterID += 1;
 
             this.start(clusterID);
@@ -137,20 +152,20 @@ export default class ClusterManager extends EventEmitter {
     public launch() {
         if (master.isMaster) {
             process.on("uncaughtException", err => {
-                logger.error(generalLog, err.stack);
+                logger.prototype.error(`${this.name}`, err.stack);
             });
 
             this.printLogo();
 
             process.nextTick(async () => {
-                logger.info(generalLog, "Cluster Manager has started!");
+                logger.prototype.info(`${this.name}`, "Cluster Manager has started!");
 
                 let shards = await this.calculateShards();
 
                 this.shardCount = shards;
                 this.lastShardID = this.shardCount - 1;
 
-                logger.info(clusterManagerName, `${this.shardCount} shards in ${this.clusterCount} clusters`);
+                logger.prototype.info(`${this.name} Master`, `${this.shardCount} shards in ${this.clusterCount} clusters`);
 
                 let embed = {
                     description: `**${this.shardCount}** Shards will be initializing.`,
@@ -171,27 +186,27 @@ export default class ClusterManager extends EventEmitter {
             Cluster.spawn();
         }
 
-        master.on('message', (worker, message, handle) => {
+        master.on('message', (worker: any, message: any) => {
             if (message.name) {
                 const clusterID = this.workers.get(worker.id);
 
                 switch (message.name) {
                     case "log":
-                        logger.log(`Cluster ${clusterID}`, `${message.msg}`);
+                        logger.prototype.log(`Cluster ${clusterID}`, `${message.msg}`);
                         break;
                     case "debug":
                         if (this.options.debug) {
-                            logger.debug(`Cluster ${clusterID}`, `${message.msg}`);
+                            logger.prototype.debug(`Cluster ${clusterID}`, `${message.msg}`);
                         }
                         break;
                     case "info":
-                        logger.info(`Cluster ${clusterID}`, `${message.msg}`);
+                        logger.prototype.info(`Cluster ${clusterID}`, `${message.msg}`);
                         break;
                     case "warn":
-                        logger.warn(`⚠️ Cluster ${clusterID}`, `${message.msg}`);
+                        logger.prototype.warn(`⚠️ Cluster ${clusterID}`, `${message.msg}`);
                         break;
                     case "error":
-                        logger.error(`❌ Cluster ${clusterID}`, `${message.msg}`);
+                        logger.prototype.error(`❌ Cluster ${clusterID}`, `${message.msg}`);
                         break;
                     case "shardsStarted":
                         this.queue.queue.splice(0, 1);
@@ -201,7 +216,7 @@ export default class ClusterManager extends EventEmitter {
                         }
                         break;
                     case "test":
-                        logger.debug("IPC", "Working");
+                        logger.prototype.debug("IPC", "Working");
                         break;
                     case "cluster":
                         this.sendWebhook("cluster", message.embed);
@@ -232,7 +247,7 @@ export default class ClusterManager extends EventEmitter {
                         this.stats.clustersCounted += 1;
 
                         if (this.stats.clustersCounted === this.clusters.size) {
-                            function compare(a, b) {
+                            function compare(a: any, b: any) {
                                 if (a.cluster < b.cluster)
                                     return -1;
                                 if (a.cluster > b.cluster)
@@ -251,7 +266,7 @@ export default class ClusterManager extends EventEmitter {
                                 clusters: clusters
                             })*/
 
-                            this.eris.emit("clusters", {
+                            this.moyai.emit("clusters", {
                                 guilds: this.stats.stats.guilds,
                                 users: this.stats.stats.users,
                                 voice: this.stats.stats.voice,
@@ -284,6 +299,7 @@ export default class ClusterManager extends EventEmitter {
                         let cluster = this.clusters.get(callback);
 
                         if (cluster) {
+                            //@ts-ignore
                             master.workers[cluster.workerID].send({ name: "fetchReturn", id: message.value.id, value: message.value });
                             this.callbacks.delete(message.value.id);
                         }
@@ -298,25 +314,26 @@ export default class ClusterManager extends EventEmitter {
             }
         });
 
-        master.on('disconnect', (worker) => {
+        master.on('disconnect', (worker: any) => {
             const clusterID = this.workers.get(worker.id);
-            logger.warn(clusterManagerName, `Cluster ${clusterID} disconnected 🔌`);
+            logger.prototype.warn(`${this.name} Master`, `Cluster ${clusterID} disconnected 🔌`);
         });
 
-        master.on('exit', (worker, code, signal) => {
+        master.on('exit', (worker: any, code: any, signal: any) => {
             this.restartCluster(worker, code, signal);
         });
 
-        this.queue.on("execute", item => {
+        this.queue.on("execute", (item: any) => {
             let cluster = this.clusters.get(item.item);
 
             if (cluster) {
+                //@ts-ignore
                 master.workers[cluster.workerID].send(item.value);
             }
         });
     }
 
-    public chunk(shards, clusterCount) {
+    public chunk(shards: Array<any>, clusterCount: number) {
 
         if (clusterCount < 2) return [shards];
 
@@ -365,24 +382,24 @@ export default class ClusterManager extends EventEmitter {
             });
         }
 
-        logger.info(clusterManagerName, `Initializing all shards ❄️`);
+        logger.prototype.info(`${this.name} Master`, `Initializing all shards ❄️`);
         if(true) {
             this.startStats();
         }
     }
 
-    public sendWebhook(type, embed) {
+    public sendWebhook(type: any, embed: any) {
         if (!this.webhooks || !this.webhooks[type]) return;
         let id = this.webhooks[type].id;
         let token = this.webhooks[type].token;
 
-        let names = {
-            shard: "Rei Shards",
-            cluster: "Rei Clusters"
+        let names: any = {
+            shard: `${this.name} Shards`,
+            cluster: `${this.name} Rei Clusters`
         }
 
         if (id && token) {
-            this.eris.executeWebhook(id, token, { embeds: [embed], username: `${names[type]}`, avatarURL: "https://images-ext-2.discordapp.net/external/QLsSRaAnfkpSgJFweTUJZ-J962sujXajXrTxk0BYo0Y/%3Fsize%3D2048/https/cdn.discordapp.com/avatars/761376400673472554/5175512f0585ff47c5b7772e13e2e141.png" });
+            this.moyai.executeWebhook(id, token, { embeds: [embed], username: `${names[type]}`, avatarURL: "https://images-ext-2.discordapp.net/external/QLsSRaAnfkpSgJFweTUJZ-J962sujXajXrTxk0BYo0Y/%3Fsize%3D2048/https/cdn.discordapp.com/avatars/761376400673472554/5175512f0585ff47c5b7772e13e2e141.png" });
         }
     }
 
@@ -397,16 +414,16 @@ export default class ClusterManager extends EventEmitter {
                 margin: 4
             })
                 .emptyLine()
-                .right(`Rei`)
+                .right(`${this.name}`)
                 .emptyLine()
                 .render()
         );
     }
 
-    public restartCluster(worker, code, signal) {
+    public restartCluster(worker: any, code: any, signal: any) {
         const clusterID = this.workers.get(worker.id);
 
-        logger.warn(clusterManagerName, `Cluster ${clusterID} died 💀`);
+        logger.prototype.warn(`${this.name} Master`, `Cluster ${clusterID} died 💀`);
 
         let cluster = this.clusters.get(clusterID);
 
@@ -427,7 +444,7 @@ export default class ClusterManager extends EventEmitter {
 
         this.workers.set(newWorker.id, clusterID);
 
-        logger.debug(clusterManagerName, `Restarting cluster ${clusterID} 🔁`);
+        logger.prototype.debug(`${this.name} Master`, `Restarting cluster ${clusterID} 🔁`);
 
         this.queue.queueItem({
             item: clusterID, value: {
@@ -451,7 +468,7 @@ export default class ClusterManager extends EventEmitter {
 
         if (this.shardCount !== 0) return Promise.resolve(this.shardCount);
 
-        let result = await this.eris.getBotGateway();
+        let result = await this.moyai.getBotGateway();
         shards = result.shards;
 
         if (shards === 1) {
@@ -465,23 +482,25 @@ export default class ClusterManager extends EventEmitter {
         }
     }
 
-    public fetchInfo(start, type, value) {
+    public fetchInfo(start: any, type: any, value: any) {
         let cluster = this.clusters.get(start);
         if (cluster) {
+            //@ts-ignore
             master.workers[cluster.workerID].send({ name: type, value: value });
             this.fetchInfo(start + 1, type, value);
         }
     }
 
-    public broadcast(start, message) {
+    public broadcast(start: any, message: string) {
         let cluster = this.clusters.get(start);
         if (cluster) {
+            //@ts-ignore
             master.workers[cluster.workerID].send(message);
             this.broadcast(start + 1, message);
         }
     }
 
-    public sendTo(cluster, message) {
+    public sendTo(cluster: any, message: string) {
         let worker = master.workers[this.clusters.get(cluster).workerID];
         if (worker) {
             worker.send(message);
