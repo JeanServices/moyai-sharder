@@ -1,10 +1,13 @@
-const EventEmitter = require("events");
+import EventEmitter from "events";
 export default class IPC extends EventEmitter {
+
+    public events: Map<any, any>;
+
     public constructor() {
         super();
         this.events = new Map();
 
-        process.on("message", msg => {
+        process.on("message", (msg: any) => {
             let event = this.events.get(msg._eventName);
             if (event) {
                 event.fn(msg);
@@ -12,26 +15,25 @@ export default class IPC extends EventEmitter {
         });
     }
 
-    public register(event, callback) {
+    public register(event: any, callback: any) {
         this.events.set(event, { fn: callback });
     }
 
-    public unregister(name) {
+    public unregister(name: any) {
         this.events.delete(name);
     }
 
-    public broadcast(name, message: { _eventName: String }) {
+    public broadcast(name: any, message: { _eventName: String }) {
         message._eventName = name;
         process.send({ name: "broadcast", msg: message });
     }
 
-    public sendTo(cluster, name, message) {
-        if(!message) message = {};
+    public sendTo(cluster: any, name: any, message: { _eventName: String }) {
         message._eventName = name;
         process.send({ name: "send", cluster: cluster, msg: message });
     }
 
-    public restart(cluster) {
+    public restart(cluster: any) {
         process.send({ name: "send", cluster: cluster, msg: { _eventName: "restart" }});
     }
 
@@ -39,11 +41,11 @@ export default class IPC extends EventEmitter {
         process.send({ name: "broadcast", msg: { _eventName: "restart" }});
     }
 
-    public async fetchUser(id) {
+    public async fetchUser(id: any) {
         process.send({ name: "fetchUser", id });
 
         return new Promise((resolve, reject) => {
-            const callback = (user) => {
+            const callback = (user: any) => {
                 this.removeListener(id, callback);
                 resolve(user);
             };
@@ -52,11 +54,11 @@ export default class IPC extends EventEmitter {
         });
     }
 
-    public async fetchGuild(id) {
+    public async fetchGuild(id: any) {
         process.send({ name: "fetchGuild", id });
 
         return new Promise((resolve, reject) => {
-            const callback = (guild) => {
+            const callback = (guild: any) => {
                 this.removeListener(id, callback);
                 resolve(guild);
             };
@@ -65,11 +67,11 @@ export default class IPC extends EventEmitter {
         });
     }
 
-    public async fetchChannel(id) {
+    public async fetchChannel(id: any) {
         process.send({ name: "fetchChannel", id });
 
         return new Promise((resolve, reject) => {
-            const callback = (channel) => {
+            const callback = (channel: any) => {
                 this.removeListener(id, callback);
                 resolve(channel);
             };
@@ -78,11 +80,11 @@ export default class IPC extends EventEmitter {
         });
     }
 
-    public async fetchMember(guildID, memberID) {
+    public async fetchMember(guildID: any, memberID: any) {
         process.send({ name: "fetchMember", guildID, memberID });
 
         return new Promise((resolve, reject) => {
-            const callback = (channel) => {
+            const callback = (channel: any) => {
                 this.removeListener(memberID, callback);
                 resolve(channel);
             };
