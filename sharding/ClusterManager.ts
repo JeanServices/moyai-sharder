@@ -8,7 +8,7 @@ import cluster from "./Cluster";
 import logger from '../../utilities/Logger';
 import Queue from "../../utilities/Queue";
 
-const clientName = "Rei";
+const clientName = "Moyai";
 const clusterManagerName = `${clientName} Clusters`;
 const clusterName = `${clusterManagerName} / Cluster`;
 const generalLog = "Master";
